@@ -95,28 +95,7 @@ public:
 	 */
 	void ProcessTransportLayer(double t, const Packet *pkt, size_t len);
 
-	/**
-	 * Returns a wrapper IP_Hdr object if \a pkt appears to be a valid IPv4
-	 * or IPv6 header based on whether it's long enough to contain such a header,
-	 * if version given in the header matches the proto argument, and also checks
-	 * that the payload length field of that header matches the actual
-	 * length of \a pkt given by \a caplen.
-	 *
-	 * @param caplen The length of \a pkt in bytes.
-	 * @param pkt The inner IP packet data.
-	 * @param proto Either IPPROTO_IPV6 or IPPROTO_IPV4 to indicate which IP
-	 *        protocol \a pkt corresponds to.
-	 * @param inner The inner IP packet wrapper pointer to be allocated/assigned
-	 *        if \a pkt looks like a valid IP packet or at least long enough
-	 *        to hold an IP header.
-	 * @return 0 If the inner IP packet appeared valid, else -1 if \a caplen
-	 *         is greater than the supposed IP packet's payload length field, -2
-	 *         if the version of the inner header does not match proto or
-	 *         1 if \a caplen is less than the supposed packet's payload length.
-	 *         In the -1 case, \a inner may still be non-null if \a caplen was
-	 *         long enough to be an IP header, and \a inner is always non-null
-	 *         for other return values.
-	 */
+	[[deprecated("Remove in v5.1. Use packet_analysis::IP::IPAnalyzer::ParseIPPacket.")]]
 	int ParseIPPacket(int caplen, const u_char* const pkt, int proto,
 	                  IP_Hdr*& inner);
 
@@ -152,11 +131,6 @@ protected:
 	bool WantConnection(uint16_t src_port, uint16_t dest_port,
 	                    TransportProto transport_proto,
 	                    uint8_t tcp_flags, bool& flip_roles);
-
-	// For a given protocol, checks whether the header's length as derived
-	// from lower-level headers or the length actually captured is less
-	// than that protocol's minimum header size.
-	bool CheckHeaderTrunc(int proto, uint32_t len, uint32_t caplen, const Packet *pkt);
 
 	// Inserts a new connection into the sessions map. If a connection with
 	// the same key already exists in the map, it will be overwritten by

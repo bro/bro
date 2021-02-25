@@ -230,11 +230,16 @@ bool IPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 	// change, but for now we leave it as it is.
 
 	bool return_val = true;
-	int proto = packet->ip_hdr->NextProto();
 
-	packet->proto = proto;
+	if ( packet->ip_hdr->TotalLen() < packet->ip_hdr->HdrLen() )
+		{
+		Weird("bogus_IP_header_lengths", packet);
+		return false;
+		}
 
-	switch ( proto ) {
+	packet->proto = packet->ip_hdr->NextProto();
+
+	switch ( packet->proto ) {
 	case IPPROTO_NONE:
 		// If the packet is encapsulated in Teredo, then it was a bubble and
 		// the Teredo analyzer may have raised an event for that, else we're
@@ -247,11 +252,10 @@ bool IPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 			}
 		break;
 	default:
-		packet->proto = proto;
 
 		// For everything else, pass it on to another analyzer. If there's no one to handle that,
 		// it'll report a Weird.
-		return_val = ForwardPacket(len, data, packet, proto);
+		return_val = ForwardPacket(len, data, packet, packet->proto);
 		break;
 	}
 
@@ -259,4 +263,40 @@ bool IPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 		f->DeleteTimer();
 
 	return return_val;
+	}
+
+int IPAnalyzer::ParseIPPacket(int caplen, const u_char* const pkt, int proto, IP_Hdr*& inner)
+	{
+	if ( proto == IPPROTO_IPV6 )
+		{
+		if ( caplen < (int)sizeof(struct ip6_hdr) )
+			return -1;
+
+		const struct ip6_hdr* ip6 = (const struct ip6_hdr*) pkt;
+		inner = new IP_Hdr(ip6, false, caplen);
+		if ( ( ip6->ip6_ctlun.ip6_un2_vfc & 0xF0 ) != 0x60 )
+			return -2;
+		}
+
+	else if ( proto == IPPROTO_IPV4 )
+		{
+		if ( caplen < (int)sizeof(struct ip) )
+			return -1;
+
+		const struct ip* ip4 = (const struct ip*) pkt;
+		inner = new IP_Hdr(ip4, false);
+		if ( ip4->ip_v != 4 )
+			return -2;
+		}
+
+	else
+		{
+		reporter->InternalWarning("Bad IP protocol version in ParseIPPacket");
+		return -1;
+		}
+
+	if ( (uint32_t)caplen != inner->TotalLen() )
+		return (uint32_t)caplen < inner->TotalLen() ? -1 : 1;
+
+	return 0;
 	}

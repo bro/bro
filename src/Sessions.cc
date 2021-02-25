@@ -27,6 +27,7 @@
 
 #include "zeek/iosource/IOSource.h"
 #include "zeek/packet_analysis/Manager.h"
+#include "zeek/packet_analysis/protocol/ip/IP.h"
 
 #include "zeek/analyzer/protocol/stepping-stone/events.bif.h"
 
@@ -78,21 +79,8 @@ void NetSessions::ProcessTransportLayer(double t, const Packet* pkt, size_t rema
 	{
 	const std::unique_ptr<IP_Hdr>& ip_hdr = pkt->ip_hdr;
 
-	uint32_t len = ip_hdr->TotalLen();
-	uint16_t ip_hdr_len = ip_hdr->HdrLen();
-
-	if ( len < ip_hdr_len )
-		{
-		sessions->Weird("bogus_IP_header_lengths", pkt);
-		return;
-		}
-
-	len -= ip_hdr_len;	// remove IP header
-
+	uint32_t len = ip_hdr->TotalLen() - ip_hdr->HdrLen();
 	int proto = ip_hdr->NextProto();
-
-	if ( CheckHeaderTrunc(proto, len, remaining, pkt) )
-		return;
 
 	const u_char* data = ip_hdr->Payload();
 
@@ -238,72 +226,7 @@ void NetSessions::ProcessTransportLayer(double t, const Packet* pkt, size_t rema
 int NetSessions::ParseIPPacket(int caplen, const u_char* const pkt, int proto,
                                IP_Hdr*& inner)
 	{
-	if ( proto == IPPROTO_IPV6 )
-		{
-		if ( caplen < (int)sizeof(struct ip6_hdr) )
-			return -1;
-
-		const struct ip6_hdr* ip6 = (const struct ip6_hdr*) pkt;
-		inner = new IP_Hdr(ip6, false, caplen);
-		if ( ( ip6->ip6_ctlun.ip6_un2_vfc & 0xF0 ) != 0x60 )
-			return -2;
-		}
-
-	else if ( proto == IPPROTO_IPV4 )
-		{
-		if ( caplen < (int)sizeof(struct ip) )
-			return -1;
-
-		const struct ip* ip4 = (const struct ip*) pkt;
-		inner = new IP_Hdr(ip4, false);
-		if ( ip4->ip_v != 4 )
-			return -2;
-		}
-
-	else
-		{
-		reporter->InternalWarning("Bad IP protocol version in ParseIPPacket");
-		return -1;
-		}
-
-	if ( (uint32_t)caplen != inner->TotalLen() )
-		return (uint32_t)caplen < inner->TotalLen() ? -1 : 1;
-
-	return 0;
-	}
-
-bool NetSessions::CheckHeaderTrunc(int proto, uint32_t len, uint32_t caplen,
-                                   const Packet* p)
-	{
-	uint32_t min_hdr_len = 0;
-	switch ( proto ) {
-	case IPPROTO_TCP:
-		min_hdr_len = sizeof(struct tcphdr);
-		break;
-	case IPPROTO_UDP:
-		min_hdr_len = sizeof(struct udphdr);
-		break;
-	case IPPROTO_ICMP:
-	case IPPROTO_ICMPV6:
-	default:
-		// Use for all other packets.
-		min_hdr_len = ICMP_MINLEN;
-		break;
-	}
-
-	if ( len < min_hdr_len )
-		{
-		Weird("truncated_header", p);
-		return true;
-		}
-
-	if ( caplen < min_hdr_len )
-		{
-		Weird("internally_truncated_header", p);
-		return true;
-		}
-
-	return false;
+	return packet_analysis::IP::IPAnalyzer::ParseIPPacket(caplen, pkt, proto, inner);
 	}
 
 Connection* NetSessions::FindConnection(Val* v)
