@@ -75,154 +75,6 @@ void NetSessions::Done()
 	{
 	}
 
-void NetSessions::ProcessTransportLayer(double t, const Packet* pkt, size_t remaining)
-	{
-	const std::unique_ptr<IP_Hdr>& ip_hdr = pkt->ip_hdr;
-
-	uint32_t len = ip_hdr->TotalLen() - ip_hdr->HdrLen();
-	int proto = ip_hdr->NextProto();
-
-	const u_char* data = ip_hdr->Payload();
-
-	ConnID id;
-	id.src_addr = ip_hdr->SrcAddr();
-	id.dst_addr = ip_hdr->DstAddr();
-	ConnectionMap* d = nullptr;
-	BifEnum::Tunnel::Type tunnel_type = BifEnum::Tunnel::IP;
-
-	switch ( proto ) {
-	case IPPROTO_TCP:
-		{
-		const struct tcphdr* tp = (const struct tcphdr *) data;
-		id.src_port = tp->th_sport;
-		id.dst_port = tp->th_dport;
-		id.is_one_way = false;
-		d = &tcp_conns;
-		break;
-		}
-
-	case IPPROTO_UDP:
-		{
-		const struct udphdr* up = (const struct udphdr *) data;
-		id.src_port = up->uh_sport;
-		id.dst_port = up->uh_dport;
-		id.is_one_way = false;
-		d = &udp_conns;
-		break;
-		}
-
-	case IPPROTO_ICMP:
-		{
-		const struct icmp* icmpp = (const struct icmp *) data;
-
-		id.src_port = icmpp->icmp_type;
-		id.dst_port = analyzer::icmp::ICMP4_counterpart(icmpp->icmp_type,
-		                                                icmpp->icmp_code,
-		                                                id.is_one_way);
-
-		id.src_port = htons(id.src_port);
-		id.dst_port = htons(id.dst_port);
-
-		d = &icmp_conns;
-		break;
-		}
-
-	case IPPROTO_ICMPV6:
-		{
-		const struct icmp* icmpp = (const struct icmp *) data;
-
-		id.src_port = icmpp->icmp_type;
-		id.dst_port = analyzer::icmp::ICMP6_counterpart(icmpp->icmp_type,
-		                                                icmpp->icmp_code,
-		                                                id.is_one_way);
-
-		id.src_port = htons(id.src_port);
-		id.dst_port = htons(id.dst_port);
-
-		d = &icmp_conns;
-		break;
-		}
-
-	default:
-		Weird("unknown_protocol", pkt, util::fmt("%d", proto));
-		return;
-	}
-
-	detail::ConnIDKey key = detail::BuildConnIDKey(id);
-	Connection* conn = nullptr;
-
-	// FIXME: The following is getting pretty complex. Need to split up
-	// into separate functions.
-	auto it = d->find(key);
-	if ( it != d->end() )
-		conn = it->second;
-
-	if ( ! conn )
-		{
-		conn = NewConn(key, t, &id, data, proto, ip_hdr->FlowLabel(), pkt);
-		if ( conn )
-			InsertConnection(d, key, conn);
-		}
-	else
-		{
-		// We already know that connection.
-		if ( conn->IsReuse(t, data) )
-			{
-			conn->Event(connection_reused, nullptr);
-
-			Remove(conn);
-			conn = NewConn(key, t, &id, data, proto, ip_hdr->FlowLabel(), pkt);
-			if ( conn )
-				InsertConnection(d, key, conn);
-			}
-		else
-			{
-			conn->CheckEncapsulation(pkt->encap);
-			}
-		}
-
-	if ( ! conn )
-		return;
-
-	int record_packet = 1;	// whether to record the packet at all
-	int record_content = 1;	// whether to record its data
-
-	bool is_orig = (id.src_addr == conn->OrigAddr()) &&
-			(id.src_port == conn->OrigPort());
-
-	conn->CheckFlowLabel(is_orig, ip_hdr->FlowLabel());
-
-	ValPtr pkt_hdr_val;
-
-	if ( ipv6_ext_headers && ip_hdr->NumHeaders() > 1 )
-		{
-		pkt_hdr_val = ip_hdr->ToPktHdrVal();
-		conn->EnqueueEvent(ipv6_ext_headers, nullptr, conn->ConnVal(),
-		                   pkt_hdr_val);
-		}
-
-	if ( new_packet )
-		conn->EnqueueEvent(new_packet, nullptr, conn->ConnVal(), pkt_hdr_val ?
-		                   std::move(pkt_hdr_val) : ip_hdr->ToPktHdrVal());
-
-	conn->NextPacket(t, is_orig, ip_hdr.get(), len, remaining, data,
-	                 record_packet, record_content, pkt);
-
-	// We skip this block for reassembled packets because the pointer
-	// math wouldn't work.
-	if ( ! ip_hdr->reassembled && record_packet )
-		{
-		if ( record_content )
-			pkt->dump_packet = true;	// save the whole thing
-
-		else
-			{
-			int hdr_len = data - pkt->data;
-			packet_mgr->DumpPacket(pkt, hdr_len);	// just save the header
-			}
-		}
-	}
-
 int NetSessions::ParseIPPacket(int caplen, const u_char* const pkt, int proto,
                                IP_Hdr*& inner)
 	{
@@ -305,6 +157,40 @@ Connection* NetSessions::FindConnection(Val* v)
 	return conn;
 	}
 
+Connection* NetSessions::FindConnection(const detail::ConnIDKey& key, TransportProto proto)
+	{
+	Connection* conn = nullptr;
+
+	switch ( proto )
+		{
+		case TRANSPORT_TCP:
+			{
+			auto it = tcp_conns.find(key);
+			if ( it != tcp_conns.end() )
+				conn = it->second;
+			break;
+			}
+		case TRANSPORT_UDP:
+			{
+			auto it = udp_conns.find(key);
+			if ( it != udp_conns.end() )
+				conn = it->second;
+			break;
+			}
+		case TRANSPORT_ICMP:
+			{
+			auto it = icmp_conns.find(key);
+			if ( it != icmp_conns.end() )
+				conn = it->second;
+			break;
+			}
+		default:
+			break;
+		}
+
+	return conn;
+	}
+
 void NetSessions::Remove(Connection* c)
 	{
 	if ( c->IsKeyValid() )
@@ -355,7 +241,7 @@ void NetSessions::Remove(Connection* c)
 		}
 	}
 
-void NetSessions::Insert(Connection* c)
+void NetSessions::Insert(Connection* c, bool remove_existing)
 	{
 	assert(c->IsKeyValid());
 
@@ -366,20 +252,29 @@ void NetSessions::Insert(Connection* c)
 	// already existing connections.
 
 	case TRANSPORT_TCP:
-		old = LookupConn(tcp_conns, c->Key());
-		tcp_conns.erase(c->Key());
+		if ( remove_existing )
+			{
+			old = LookupConn(tcp_conns, c->Key());
+			tcp_conns.erase(c->Key());
+			}
 		InsertConnection(&tcp_conns, c->Key(), c);
 		break;
 
 	case TRANSPORT_UDP:
-		old = LookupConn(udp_conns, c->Key());
-		udp_conns.erase(c->Key());
+		if ( remove_existing )
+			{
+			old = LookupConn(udp_conns, c->Key());
+			udp_conns.erase(c->Key());
+			}
 		InsertConnection(&udp_conns, c->Key(), c);
 		break;
 
 	case TRANSPORT_ICMP:
-		old = LookupConn(icmp_conns, c->Key());
-		icmp_conns.erase(c->Key());
+		if ( remove_existing )
+			{
+			old = LookupConn(icmp_conns, c->Key());
+			icmp_conns.erase(c->Key());
+			}
 		InsertConnection(&icmp_conns, c->Key(), c);
 		break;
 
@@ -456,66 +351,6 @@ void NetSessions::GetStats(SessionStats& s) const
 	s.max_fragments = detail::fragment_mgr->MaxFragments();
 	}
 
-Connection* NetSessions::NewConn(const detail::ConnIDKey& k, double t, const ConnID* id,
-                                 const u_char* data, int proto, uint32_t flow_label,
-                                 const Packet* pkt)
-	{
-	// FIXME: This should be cleaned up a bit, it's too protocol-specific.
-	// But I'm not yet sure what the right abstraction for these things is.
-	int src_h = ntohs(id->src_port);
-	int dst_h = ntohs(id->dst_port);
-	int flags = 0;
-
-	// Hmm... This is not great.
-	TransportProto tproto = TRANSPORT_UNKNOWN;
-	switch ( proto ) {
-		case IPPROTO_ICMP:
-			tproto = TRANSPORT_ICMP;
-			break;
-		case IPPROTO_TCP:
-			tproto = TRANSPORT_TCP;
-			break;
-		case IPPROTO_UDP:
-			tproto = TRANSPORT_UDP;
-			break;
-		case IPPROTO_ICMPV6:
-			tproto = TRANSPORT_ICMP;
-			break;
-		default:
-			reporter->InternalWarning("unknown transport protocol");
-			return nullptr;
-	};
-
-	if ( tproto == TRANSPORT_TCP )
-		{
-		const struct tcphdr* tp = (const struct tcphdr*) data;
-		flags = tp->th_flags;
-		}
-
-	bool flip = false;
-
-	if ( ! WantConnection(src_h, dst_h, tproto, flags, flip) )
-		return nullptr;
-
-	Connection* conn = new Connection(this, k, t, id, flow_label, pkt);
-	conn->SetTransport(tproto);
-
-	if ( flip )
-		conn->FlipRoles();
-
-	if ( ! analyzer_mgr->BuildInitialAnalyzerTree(conn) )
-		{
-		conn->Done();
-		Unref(conn);
-		return nullptr;
-		}
-
-	if ( new_connection )
-		conn->Event(new_connection, nullptr);
-
-	return conn;
-	}
-
 Connection* NetSessions::LookupConn(const ConnectionMap& conns, const detail::ConnIDKey& key)
 	{
 	auto it = conns.find(key);
@@ -523,80 +358,6 @@ Connection* NetSessions::LookupConn(const ConnectionMap& conns, const detail::Co
 		return it->second;
 
 	return nullptr;
-	}
-
-bool NetSessions::IsLikelyServerPort(uint32_t port, TransportProto proto) const
-	{
-	// We keep a cached in-core version of the table to speed up the lookup.
-	static std::set<bro_uint_t> port_cache;
-	static bool have_cache = false;
-
-	if ( ! have_cache )
-		{
-		auto likely_server_ports = id::find_val<TableVal>("likely_server_ports");
-		auto lv = likely_server_ports->ToPureListVal();
-		for ( int i = 0; i < lv->Length(); i++ )
-			port_cache.insert(lv->Idx(i)->InternalUnsigned());
-		have_cache = true;
-		}
-
-	// We exploit our knowledge of PortVal's internal storage mechanism
-	// here.
-	if ( proto == TRANSPORT_TCP )
-		port |= TCP_PORT_MASK;
-	else if ( proto == TRANSPORT_UDP )
-		port |= UDP_PORT_MASK;
-	else if ( proto == TRANSPORT_ICMP )
-		port |= ICMP_PORT_MASK;
-
-	return port_cache.find(port) != port_cache.end();
-	}
-
-bool NetSessions::WantConnection(uint16_t src_port, uint16_t dst_port,
-                                 TransportProto transport_proto,
-                                 uint8_t tcp_flags, bool& flip_roles)
-	{
-	flip_roles = false;
-
-	if ( transport_proto == TRANSPORT_TCP )
-		{
-		if ( ! (tcp_flags & TH_SYN) || (tcp_flags & TH_ACK) )
-			{
-			// The new connection is starting either without a SYN,
-			// or with a SYN ack. This means it's a partial connection.
-			if ( ! zeek::detail::partial_connection_ok )
-				return false;
-
-			if ( tcp_flags & TH_SYN && ! zeek::detail::tcp_SYN_ack_ok )
-				return false;
-
-			// Try to guess true responder by the port numbers.
-			// (We might also think that for SYN acks we could
-			// safely flip the roles, but that doesn't work
-			// for stealth scans.)
-			if ( IsLikelyServerPort(src_port, TRANSPORT_TCP) )
-				{ // connection is a candidate for flipping
-				if ( IsLikelyServerPort(dst_port, TRANSPORT_TCP) )
-					// Hmmm, both source and destination
-					// are plausible.  Heuristic: flip only
-					// if (1) this isn't a SYN ACK (to avoid
-					// confusing stealth scans) and
-					// (2) dest port > src port (to favor
-					// more plausible servers).
-					flip_roles = ! (tcp_flags & TH_SYN) && src_port < dst_port;
-				else
-					// Source is plausible, destination isn't.
-					flip_roles = true;
-				}
-			}
-		}
-
-	else if ( transport_proto == TRANSPORT_UDP )
-		flip_roles =
-			IsLikelyServerPort(src_port, TRANSPORT_UDP) &&
-			! IsLikelyServerPort(dst_port, TRANSPORT_UDP);
-
-	return true;
 	}
 
 void NetSessions::Weird(const char* name, const Packet* pkt, const char* addl, const char* source)

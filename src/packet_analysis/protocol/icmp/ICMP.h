@@ -4,10 +4,11 @@
 
 #include "zeek/packet_analysis/Analyzer.h"
 #include "zeek/packet_analysis/Component.h"
+#include "zeek/packet_analysis/protocol/ip/IPBasedAnalyzer.h"
 
 namespace zeek::packet_analysis::ICMP {
 
-class ICMPAnalyzer : public Analyzer {
+class ICMPAnalyzer : public zeek::packet_analysis::IP::IPBasedAnalyzer {
 public:
 	ICMPAnalyzer();
 	~ICMPAnalyzer() override;
@@ -19,8 +20,17 @@ public:
 		return std::make_shared<ICMPAnalyzer>();
 		}
 
-private:
+protected:
 
+	/**
+	 * Returns the port mask for an analyzer used by IsLikelyServerPort.
+	 */
+	uint32_t GetServerPortMask() const override { return ICMP_PORT_MASK; }
+
+	/**
+	 * Returns the transport protocol. Used by NewConn().
+	 */
+	TransportProto GetTransportProto() const override { return TRANSPORT_ICMP; }
 };
 
 }

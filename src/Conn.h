@@ -71,7 +71,9 @@ static inline int addr_port_canon_lt(const IPAddr& addr1, uint32_t p1,
 	return addr1 < addr2 || (addr1 == addr2 && p1 < p2);
 	}
 
-class Connection final : public Obj {
+class BaseConnection : public Obj {};
+
+class Connection final : public BaseConnection {
 public:
 
 	Connection(NetSessions* s, const detail::ConnIDKey& k, double t, const ConnID* id,

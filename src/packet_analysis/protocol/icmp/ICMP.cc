@@ -3,11 +3,13 @@
 #include "zeek/packet_analysis/protocol/icmp/ICMP.h"
 #include "zeek/RunState.h"
 #include "zeek/Sessions.h"
+#include "zeek/Conn.h"
+#include "zeek/analyzer/protocol/icmp/ICMP.h"
 
 using namespace zeek::packet_analysis::ICMP;
 
 ICMPAnalyzer::ICMPAnalyzer()
-	: zeek::packet_analysis::Analyzer("ICMP_PKT")
+	: zeek::packet_analysis::IP::IPBasedAnalyzer("ICMP_PKT")
 	{
 	}
 
@@ -17,19 +19,40 @@ ICMPAnalyzer::~ICMPAnalyzer()
 
 bool ICMPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 	{
-	uint32_t post_ip_len = packet->ip_hdr->TotalLen() - packet->ip_hdr->HdrLen();
-
-	if ( post_ip_len < ICMP_MINLEN )
-		{
-		Weird("truncated_header", packet);
+	if ( ! CheckHeaderTrunc(ICMP_MINLEN, len, packet) )
 		return false;
-		}
-	else if ( len < ICMP_MINLEN )
+
+	ConnID id;
+	id.src_addr = packet->ip_hdr->SrcAddr();
+	id.dst_addr = packet->ip_hdr->DstAddr();
+
+	if ( packet->proto == IPPROTO_ICMP )
 		{
-		Weird("internally_truncated_header", packet);
-		return false;
+		const struct icmp* icmpp = (const struct icmp *) data;
+		id.src_port = icmpp->icmp_type;
+		id.dst_port = analyzer::icmp::ICMP4_counterpart(icmpp->icmp_type,
+		                                                icmpp->icmp_code,
+		                                                id.is_one_way);
+
+		id.src_port = htons(id.src_port);
+		id.dst_port = htons(id.dst_port);
+		}
+	else if ( packet->proto == IPPROTO_ICMPV6 )
+		{
+		const struct icmp* icmpp = (const struct icmp *) data;
+		id.src_port = icmpp->icmp_type;
+		id.dst_port = analyzer::icmp::ICMP6_counterpart(icmpp->icmp_type,
+		                                                icmpp->icmp_code,
+		                                                id.is_one_way);
+		id.src_port = htons(id.src_port);
+		id.dst_port = htons(id.dst_port);
+		}
+	else
+		{
+		// TODO: how'd we get here?
 		}
 
-	sessions->ProcessTransportLayer(run_state::processing_start_time, packet, len);
+	ProcessConnection(id, packet, len);
+
 	return true;
 	}
