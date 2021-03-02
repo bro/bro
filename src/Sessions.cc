@@ -61,14 +61,7 @@ NetSessions::~NetSessions()
 	delete packet_filter;
 	delete stp_manager;
 
-	for ( const auto& entry : tcp_conns )
-		Unref(entry.second);
-	for ( const auto& entry : udp_conns )
-		Unref(entry.second);
-	for ( const auto& entry : icmp_conns )
-		Unref(entry.second);
-
-	detail::fragment_mgr->Clear();
+	Clear();
 	}
 
 void NetSessions::Done()
@@ -133,25 +126,10 @@ Connection* NetSessions::FindConnection(Val* v)
 	id.is_one_way = false;	// ### incorrect for ICMP connections
 
 	detail::ConnIDKey key = detail::BuildConnIDKey(id);
-	ConnectionMap* d;
-
-	if ( orig_portv->IsTCP() )
-		d = &tcp_conns;
-	else if ( orig_portv->IsUDP() )
-		d = &udp_conns;
-	else if ( orig_portv->IsICMP() )
-		d = &icmp_conns;
-	else
-		{
-		// This can happen due to pseudo-connections we
-		// construct, for example for packet headers embedded
-		// in ICMPs.
-		return nullptr;
-		}
 
 	Connection* conn = nullptr;
-	auto it = d->find(key);
-	if ( it != d->end() )
+	auto it = conns.find(key);
+	if ( it != conns.end() )
 		conn = it->second;
 
 	return conn;
@@ -161,32 +139,9 @@ Connection* NetSessions::FindConnection(const detail::ConnIDKey& key, TransportP
 	{
 	Connection* conn = nullptr;
 
-	switch ( proto )
-		{
-		case TRANSPORT_TCP:
-			{
-			auto it = tcp_conns.find(key);
-			if ( it != tcp_conns.end() )
-				conn = it->second;
-			break;
-			}
-		case TRANSPORT_UDP:
-			{
-			auto it = udp_conns.find(key);
-			if ( it != udp_conns.end() )
-				conn = it->second;
-			break;
-			}
-		case TRANSPORT_ICMP:
-			{
-			auto it = icmp_conns.find(key);
-			if ( it != icmp_conns.end() )
-				conn = it->second;
-			break;
-			}
-		default:
-			break;
-		}
+	auto it = conns.find(key);
+	if ( it != conns.end() )
+		conn = it->second;
 
 	return conn;
 	}
@@ -216,26 +171,8 @@ void NetSessions::Remove(Connection* c)
 		// longer in the dictionary.
 		c->ClearKey();
 
-		switch ( c->ConnTransport() ) {
-		case TRANSPORT_TCP:
-			if ( tcp_conns.erase(key) == 0 )
-				reporter->InternalWarning("connection missing");
-			break;
-
-		case TRANSPORT_UDP:
-			if ( udp_conns.erase(key) == 0 )
-				reporter->InternalWarning("connection missing");
-			break;
-
-		case TRANSPORT_ICMP:
-			if ( icmp_conns.erase(key) == 0 )
-				reporter->InternalWarning("connection missing");
-			break;
-
-		case TRANSPORT_UNKNOWN:
-			reporter->InternalWarning("unknown transport when removing connection");
-			break;
-		}
+		if ( conns.erase(key) == 0 )
+			reporter->InternalWarning("connection missing");
 
 		Unref(c);
 		}
@@ -247,42 +184,13 @@ void NetSessions::Insert(Connection* c, bool remove_existing)
 
 	Connection* old = nullptr;
 
-	switch ( c->ConnTransport() ) {
-	// Remove first. Otherwise the map would still reference the old key for
-	// already existing connections.
+	if ( remove_existing )
+		{
+		old = LookupConn(conns, c->Key());
+		conns.erase(c->Key());
+		}
 
-	case TRANSPORT_TCP:
-		if ( remove_existing )
-			{
-			old = LookupConn(tcp_conns, c->Key());
-			tcp_conns.erase(c->Key());
-			}
-		InsertConnection(&tcp_conns, c->Key(), c);
-		break;
-
-	case TRANSPORT_UDP:
-		if ( remove_existing )
-			{
-			old = LookupConn(udp_conns, c->Key());
-			udp_conns.erase(c->Key());
-			}
-		InsertConnection(&udp_conns, c->Key(), c);
-		break;
-
-	case TRANSPORT_ICMP:
-		if ( remove_existing )
-			{
-			old = LookupConn(icmp_conns, c->Key());
-			icmp_conns.erase(c->Key());
-			}
-		InsertConnection(&icmp_conns, c->Key(), c);
-		break;
-
-	default:
-		reporter->InternalWarning("unknown connection type");
-		Unref(c);
-		return;
-	}
+	InsertConnection(c->Key(), c);
 
 	if ( old && old != c )
 		{
@@ -296,58 +204,39 @@ void NetSessions::Insert(Connection* c, bool remove_existing)
 
 void NetSessions::Drain()
 	{
-	for ( const auto& entry : tcp_conns )
+	for ( const auto& entry : conns )
 		{
 		Connection* tc = entry.second;
 		tc->Done();
 		tc->RemovalEvent();
 		}
-
-	for ( const auto& entry : udp_conns )
-		{
-		Connection* uc = entry.second;
-		uc->Done();
-		uc->RemovalEvent();
-		}
-
-	for ( const auto& entry : icmp_conns )
-		{
-		Connection* ic = entry.second;
-		ic->Done();
-		ic->RemovalEvent();
-		}
 	}
 
 void NetSessions::Clear()
 	{
-	for ( const auto& entry : tcp_conns )
-		Unref(entry.second);
-	for ( const auto& entry : udp_conns )
-		Unref(entry.second);
-	for ( const auto& entry : icmp_conns )
+	for ( const auto& entry : conns )
 		Unref(entry.second);
 
-	tcp_conns.clear();
-	udp_conns.clear();
-	icmp_conns.clear();
+	conns.clear();
 
 	detail::fragment_mgr->Clear();
 	}
 
 void NetSessions::GetStats(SessionStats& s) const
 	{
-	s.num_TCP_conns = tcp_conns.size();
-	s.cumulative_TCP_conns = stats.cumulative_TCP_conns;
-	s.num_UDP_conns = udp_conns.size();
-	s.cumulative_UDP_conns = stats.cumulative_UDP_conns;
-	s.num_ICMP_conns = icmp_conns.size();
-	s.cumulative_ICMP_conns = stats.cumulative_ICMP_conns;
+	// TODO: figure this out
+	// s.num_TCP_conns = tcp_conns.size();
+	// s.cumulative_TCP_conns = stats.cumulative_TCP_conns;
+	// s.num_UDP_conns = udp_conns.size();
+	// s.cumulative_UDP_conns = stats.cumulative_UDP_conns;
+	// s.num_ICMP_conns = icmp_conns.size();
+	// s.cumulative_ICMP_conns = stats.cumulative_ICMP_conns;
 	s.num_fragments = detail::fragment_mgr->Size();
 	s.num_packets = packet_mgr->PacketsProcessed();
 
-	s.max_TCP_conns = stats.max_TCP_conns;
-	s.max_UDP_conns = stats.max_UDP_conns;
-	s.max_ICMP_conns = stats.max_ICMP_conns;
+	// s.max_TCP_conns = stats.max_TCP_conns;
+	// s.max_UDP_conns = stats.max_UDP_conns;
+	// s.max_ICMP_conns = stats.max_ICMP_conns;
 	s.max_fragments = detail::fragment_mgr->MaxFragments();
 	}
 
@@ -394,13 +283,7 @@ unsigned int NetSessions::ConnectionMemoryUsage()
 		// Connections have been flushed already.
 		return 0;
 
-	for ( const auto& entry : tcp_conns )
-		mem += entry.second->MemoryAllocation();
-
-	for ( const auto& entry : udp_conns )
-		mem += entry.second->MemoryAllocation();
-
-	for ( const auto& entry : icmp_conns )
+	for ( const auto& entry : conns )
 		mem += entry.second->MemoryAllocation();
 
 	return mem;
@@ -414,13 +297,7 @@ unsigned int NetSessions::ConnectionMemoryUsageConnVals()
 		// Connections have been flushed already.
 		return 0;
 
-	for ( const auto& entry : tcp_conns )
-		mem += entry.second->MemoryAllocationConnVal();
-
-	for ( const auto& entry : udp_conns )
-		mem += entry.second->MemoryAllocationConnVal();
-
-	for ( const auto& entry : icmp_conns )
+	for ( const auto& entry : conns )
 		mem += entry.second->MemoryAllocationConnVal();
 
 	return mem;
@@ -434,18 +311,18 @@ unsigned int NetSessions::MemoryAllocation()
 
 	return ConnectionMemoryUsage()
 		+ padded_sizeof(*this)
-		+ (tcp_conns.size() * (sizeof(ConnectionMap::key_type) + sizeof(ConnectionMap::value_type)))
-		+ (udp_conns.size() * (sizeof(ConnectionMap::key_type) + sizeof(ConnectionMap::value_type)))
-		+ (icmp_conns.size() * (sizeof(ConnectionMap::key_type) + sizeof(ConnectionMap::value_type)))
+		+ (conns.size() * sizeof(ConnectionMap::key_type) + sizeof(ConnectionMap::value_type))
 		+ detail::fragment_mgr->MemoryAllocation();
 		// FIXME: MemoryAllocation() not implemented for rest.
 		;
 	}
 
-void NetSessions::InsertConnection(ConnectionMap* m, const detail::ConnIDKey& key, Connection* conn)
+void NetSessions::InsertConnection(const detail::ConnIDKey& key, Connection* conn)
 	{
-	(*m)[key] = conn;
+	conns[key] = conn;
 
+	// TODO: figure this out.
+	/*
 	switch ( conn->ConnTransport() )
 		{
 		case TRANSPORT_TCP:
@@ -465,6 +342,7 @@ void NetSessions::InsertConnection(ConnectionMap* m, const detail::ConnIDKey& ke
 			break;
 		default: break;
 		}
+	*/
 	}
 
 } // namespace zeek

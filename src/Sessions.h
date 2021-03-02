@@ -87,7 +87,7 @@ public:
 
 	unsigned int CurrentConnections()
 		{
-		return tcp_conns.size() + udp_conns.size() + icmp_conns.size();
+		return conns.size();
 		}
 
 	[[deprecated("Remove in v5.1. Use packet_analysis::IP::IPAnalyzer::ParseIPPacket.")]]
@@ -110,11 +110,9 @@ private:
 	// the new one.  Connection count stats get updated either way (so most
 	// cases should likely check that the key is not already in the map to
 	// avoid unnecessary incrementing of connecting counts).
-	void InsertConnection(ConnectionMap* m, const detail::ConnIDKey& key, Connection* conn);
+	void InsertConnection(const detail::ConnIDKey& key, Connection* conn);
 
-	ConnectionMap tcp_conns;
-	ConnectionMap udp_conns;
-	ConnectionMap icmp_conns;
+	ConnectionMap conns;
 
 	SessionStats stats;
 
