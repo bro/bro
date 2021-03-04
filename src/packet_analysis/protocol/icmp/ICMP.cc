@@ -25,6 +25,7 @@ bool ICMPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet
 	ConnID id;
 	id.src_addr = packet->ip_hdr->SrcAddr();
 	id.dst_addr = packet->ip_hdr->DstAddr();
+	id.proto = TRANSPORT_ICMP;
 
 	if ( packet->proto == IPPROTO_ICMP )
 		{

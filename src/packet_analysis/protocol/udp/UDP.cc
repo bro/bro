@@ -29,6 +29,7 @@ bool UDPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 	id.src_port = up->uh_sport;
 	id.dst_port = up->uh_dport;
 	id.is_one_way = false;
+	id.proto = TRANSPORT_UDP;
 
 	ProcessConnection(id, packet, len);
 

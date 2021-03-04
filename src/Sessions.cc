@@ -124,6 +124,7 @@ Connection* NetSessions::FindConnection(Val* v)
 	id.dst_port = htons((unsigned short) resp_portv->Port());
 
 	id.is_one_way = false;	// ### incorrect for ICMP connections
+	id.proto = orig_portv->PortType();
 
 	detail::ConnIDKey key = detail::BuildConnIDKey(id);
 

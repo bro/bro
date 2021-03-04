@@ -79,7 +79,9 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 	conn->NextPacket(run_state::processing_start_time, is_orig, ip_hdr.get(), ip_hdr->PayloadLen(),
 	                 remaining, data, record_packet, record_content, pkt);
 
-	// TODO: this doesn't feel right here but it doesn't feel right in the IP analyzer either
+	// TODO: this doesn't feel right here but it doesn't feel right in the IP analyzer
+	// either. If we're not handling something IP-based, how does the packet get recorded?
+
 	// We skip this block for reassembled packets because the pointer
 	// math wouldn't work.
 	if ( ! ip_hdr->reassembled && record_packet )

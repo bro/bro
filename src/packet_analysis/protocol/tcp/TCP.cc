@@ -26,10 +26,13 @@ bool TCPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 	id.src_addr = packet->ip_hdr->SrcAddr();
 	id.dst_addr = packet->ip_hdr->DstAddr();
 
+	data = packet->ip_hdr->Payload();
+
 	const struct tcphdr* tp = (const struct tcphdr *) data;
 	id.src_port = tp->th_sport;
 	id.dst_port = tp->th_dport;
 	id.is_one_way = false;
+	id.proto = TRANSPORT_TCP;
 
 	ProcessConnection(id, packet, len);
 
