@@ -16,6 +16,7 @@ namespace zeek {
 class EncapsulationStack;
 class Packet;
 class Connection;
+class Session;
 struct ConnID;
 
 namespace analyzer::stepping_stone { class SteppingStoneManager; }
@@ -59,7 +60,7 @@ public:
 	 */
 	Connection* FindConnection(const detail::ConnIDKey& key, TransportProto proto);
 
-	void Remove(Connection* c);
+	void Remove(Session* s);
 	void Insert(Connection* c, bool remove_existing = true);
 
 	// Generating connection_pending events for all connections

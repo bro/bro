@@ -18,6 +18,11 @@ const IPAddr IPAddr::v4_unspecified = IPAddr(in4_addr{});
 
 const IPAddr IPAddr::v6_unspecified = IPAddr();
 
+std::unique_ptr<detail::HashKey> detail::ConnIDKey::GetHashKey() const
+	{
+	return std::make_unique<detail::HashKey>(this, sizeof(*this));
+	}
+
 detail::ConnIDKey detail::BuildConnIDKey(const ConnID& id)
 	{
 	ConnIDKey key;
