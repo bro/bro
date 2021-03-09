@@ -27,11 +27,12 @@ uint64_t Connection::current_connections = 0;
 
 Connection::Connection(NetSessions* s, const detail::ConnIDKey& k, double t,
                        const ConnID* id, uint32_t flow, const Packet* pkt)
-	: Session(k.GetHashKey(), t, connection_timeout, connection_status_update,
+	: Session(t, connection_timeout, connection_status_update,
 	          detail::connection_status_update_interval)
 	{
 	sessions = s;
 	key = k;
+	hash_key = k.GetHashKey();
 	key_valid = true;
 
 	orig_addr = id->src_addr;

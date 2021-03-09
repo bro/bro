@@ -49,11 +49,11 @@ void SessionTimer::Dispatch(double t, bool is_expire)
 
 } // namespace detail
 
-Session::Session(std::unique_ptr<detail::HashKey>&& key, double t,
+Session::Session(double t,
                  EventHandlerPtr timeout_event,
                  EventHandlerPtr status_update_event,
                  double status_update_interval)
-	: key(std::move(key)), start_time(t), last_time(t),
+	: start_time(t), last_time(t),
 	  session_timeout_event(timeout_event),
 	  session_status_update_event(status_update_event),
 	  session_status_update_interval(status_update_interval)
@@ -166,10 +166,10 @@ void Session::AddTimer(timer_func timer, double t, bool do_expire,
 	if ( timers_canceled )
 		return;
 
-	// If the key is cleared, the connection isn't stored in the connection
-	// table anymore and will soon be deleted. We're not installing new
-	// timers anymore then.
-	if ( ! key )
+	// If the key is cleared, the session isn't stored in the session table
+	// anymore and will soon be deleted. We're not installed new timers
+	// anymore then.
+	if ( ! IsKeyValid() )
 		return;
 
 	detail::Timer* conn_timer = new detail::SessionTimer(this, timer, t, do_expire, type);

@@ -26,9 +26,6 @@ public:
 	/**
 	 * Construct a new session.
 	 *
-	 * @param key A hash key used to identify the session. This takes ownership of the
-	 * hash key passed in. The hash stored in this object will be used by the
-	 * session manager to store the session.
 	 * @param t The timestamp for the start and end of the session when it's initially
 	 * created. The end time will be updated as later packets are processed.
 	 * @param timeout_event The event that will be emitted when the session times out.
@@ -39,8 +36,7 @@ public:
 	 * @param status_update_interval The interval in seconds for the status update
 	 * event to be emitted. Setting this to zero disables the status update timer.
 	 */
-	Session(std::unique_ptr<detail::HashKey>&& key, double t,
-	        EventHandlerPtr timeout_event,
+	Session(double t, EventHandlerPtr timeout_event,
 	        EventHandlerPtr status_update_event = nullptr,
 	        double status_update_interval = 0);
 
@@ -56,9 +52,9 @@ public:
 	// Keys are only considered valid for a session when the session is
 	// stored by the SessionManager. If it is removed, the key will be
 	// marked as invalid.
-	const std::unique_ptr<detail::HashKey>& HashKey() const	{ return key; }
-	void ClearHashKey()	{ key.reset(); }
-	bool IsHashKeyValid() const	{ return key == nullptr; }
+	virtual const std::unique_ptr<detail::HashKey>& HashKey() const = 0;
+	virtual void ClearKey() = 0;
+	virtual bool IsKeyValid() const = 0;
 
 	double StartTime() const		{ return start_time; }
 	void SetStartTime(double t)		{ start_time = t; }
@@ -210,7 +206,6 @@ protected:
 	// TODO: is this method used by anyone?
 	void RemoveConnectionTimer(double t);
 
-	std::unique_ptr<detail::HashKey> key;
 	double start_time, last_time;
 	TimerPList timers;
 	double inactivity_timeout;

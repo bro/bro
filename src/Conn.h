@@ -116,12 +116,14 @@ public:
 	// connection is in the session map. If it is removed, the key
 	// should be marked invalid.
 	const detail::ConnIDKey& Key() const	{ return key; }
-	void ClearKey()
+	const std::unique_ptr<detail::HashKey>& HashKey() const override
+		{ return hash_key; }
+	void ClearKey() override
 		{
-		Session::ClearHashKey();
 		key_valid = false;
+		hash_key.reset();
 		}
-	bool IsKeyValid() const			{ return key_valid; }
+	bool IsKeyValid() const	override	{ return key_valid; }
 
 	const IPAddr& OrigAddr() const		{ return orig_addr; }
 	const IPAddr& RespAddr() const		{ return resp_addr; }
@@ -253,6 +255,7 @@ protected:
 
 	NetSessions* sessions;
 	detail::ConnIDKey key;
+	std::unique_ptr<detail::HashKey> hash_key;
 	bool key_valid;
 
 	IPAddr orig_addr;
