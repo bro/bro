@@ -41,7 +41,6 @@ enum NetBIOS_Service {
 };
 
 zeek::NetSessions* zeek::sessions;
-zeek::NetSessions*& sessions = zeek::sessions;
 
 namespace zeek {
 
@@ -130,9 +129,9 @@ Connection* NetSessions::FindConnection(Val* v)
 	detail::ConnIDKey key = detail::BuildConnIDKey(id);
 
 	Connection* conn = nullptr;
-	auto it = conns.find(key);
-	if ( it != conns.end() )
-		conn = it->second;
+	auto it = sessions.find(key.GetHashKey()->Hash());
+	if ( it != sessions.end() )
+		conn = static_cast<Connection*>(it->second);
 
 	return conn;
 	}
@@ -141,22 +140,21 @@ Connection* NetSessions::FindConnection(const detail::ConnIDKey& key, TransportP
 	{
 	Connection* conn = nullptr;
 
-	auto it = conns.find(key);
-	if ( it != conns.end() )
-		conn = it->second;
+	auto it = sessions.find(key.GetHashKey()->Hash());
+	if ( it != sessions.end() )
+		conn = static_cast<Connection*>(it->second);
 
 	return conn;
 	}
 
 void NetSessions::Remove(Session* s)
 	{
-	Connection* c = static_cast<Connection*>(s);
-
-	if ( c->IsKeyValid() )
+	if ( s->IsKeyValid() )
 		{
-		const detail::ConnIDKey& key = c->Key();
-		c->CancelTimers();
+		s->CancelTimers();
 
+		// TODO: what should I do with this?
+		Connection* c = static_cast<Connection*>(s);
 		if ( c->ConnTransport() == TRANSPORT_TCP )
 			{
 			auto ta = static_cast<analyzer::tcp::TCP_Analyzer*>(c->GetRootAnalyzer());
@@ -167,36 +165,38 @@ void NetSessions::Remove(Session* s)
 			tcp_stats.StateLeft(to->state, tr->state);
 			}
 
-		c->Done();
-		c->RemovalEvent();
+		s->Done();
+		s->RemovalEvent();
 
-		// Zero out c's copy of the key, so that if c has been Ref()'d
-		// up, we know on a future call to Remove() that it's no
-		// longer in the dictionary.
-		c->ClearKey();
+		// Cleares out the session's copy of the key so that if the
+		// session has been Ref()'d somewhere, we know that on a future
+		// call to Remove() that it's no longer in the map.
+		detail::hash_t hash = s->HashKey()->Hash();
+		s->ClearKey();
 
-		if ( conns.erase(key) == 0 )
+		if ( sessions.erase(hash) == 0 )
 			reporter->InternalWarning("connection missing");
 
-		Unref(c);
+		Unref(s);
 		}
 	}
 
-void NetSessions::Insert(Connection* c, bool remove_existing)
+void NetSessions::Insert(Session* s, bool remove_existing)
 	{
-	assert(c->IsKeyValid());
+	assert(s->IsKeyValid());
 
-	Connection* old = nullptr;
+	Session* old = nullptr;
+	detail::hash_t hash = s->HashKey()->Hash();
 
 	if ( remove_existing )
 		{
-		old = LookupConn(conns, c->Key());
-		conns.erase(c->Key());
+		old = Lookup(hash);
+		sessions.erase(hash);
 		}
 
-	InsertConnection(c->Key(), c);
+	InsertSession(hash, s);
 
-	if ( old && old != c )
+	if ( old && old != s )
 		{
 		// Some clean-ups similar to those in Remove() (but invisible
 		// to the script layer).
@@ -208,9 +208,9 @@ void NetSessions::Insert(Connection* c, bool remove_existing)
 
 void NetSessions::Drain()
 	{
-	for ( const auto& entry : conns )
+	for ( const auto& entry : sessions )
 		{
-		Connection* tc = entry.second;
+		Session* tc = entry.second;
 		tc->Done();
 		tc->RemovalEvent();
 		}
@@ -218,10 +218,10 @@ void NetSessions::Drain()
 
 void NetSessions::Clear()
 	{
-	for ( const auto& entry : conns )
+	for ( const auto& entry : sessions )
 		Unref(entry.second);
 
-	conns.clear();
+	sessions.clear();
 
 	detail::fragment_mgr->Clear();
 	}
@@ -244,10 +244,10 @@ void NetSessions::GetStats(SessionStats& s) const
 	s.max_fragments = detail::fragment_mgr->MaxFragments();
 	}
 
-Connection* NetSessions::LookupConn(const ConnectionMap& conns, const detail::ConnIDKey& key)
+Session* NetSessions::Lookup(detail::hash_t hash)
 	{
-	auto it = conns.find(key);
-	if ( it != conns.end() )
+	auto it = sessions.find(hash);
+	if ( it != sessions.end() )
 		return it->second;
 
 	return nullptr;
@@ -287,7 +287,7 @@ unsigned int NetSessions::ConnectionMemoryUsage()
 		// Connections have been flushed already.
 		return 0;
 
-	for ( const auto& entry : conns )
+	for ( const auto& entry : sessions )
 		mem += entry.second->MemoryAllocation();
 
 	return mem;
@@ -301,7 +301,7 @@ unsigned int NetSessions::ConnectionMemoryUsageConnVals()
 		// Connections have been flushed already.
 		return 0;
 
-	for ( const auto& entry : conns )
+	for ( const auto& entry : sessions )
 		mem += entry.second->MemoryAllocationConnVal();
 
 	return mem;
@@ -310,20 +310,20 @@ unsigned int NetSessions::ConnectionMemoryUsageConnVals()
 unsigned int NetSessions::MemoryAllocation()
 	{
 	if ( run_state::terminating )
-		// Connections have been flushed already.
+		// Sessions have been flushed already.
 		return 0;
 
 	return ConnectionMemoryUsage()
 		+ padded_sizeof(*this)
-		+ (conns.size() * sizeof(ConnectionMap::key_type) + sizeof(ConnectionMap::value_type))
+		+ (sessions.size() * sizeof(SessionMap::key_type) + sizeof(SessionMap::value_type))
 		+ detail::fragment_mgr->MemoryAllocation();
 		// FIXME: MemoryAllocation() not implemented for rest.
 		;
 	}
 
-void NetSessions::InsertConnection(const detail::ConnIDKey& key, Connection* conn)
+void NetSessions::InsertSession(detail::hash_t hash, Session* session)
 	{
-	conns[key] = conn;
+	sessions[hash] = session;
 
 	// TODO: figure this out.
 	/*

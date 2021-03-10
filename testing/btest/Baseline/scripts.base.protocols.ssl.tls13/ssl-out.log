@@ -7,8 +7,8 @@
 #open XXXX-XX-XX-XX-XX-XX
 #fields	ts	uid	id.orig_h	id.orig_p	id.resp_h	id.resp_p	version	cipher	curve	server_name	resumed	last_alert	next_protocol	established	cert_chain_fuids	client_cert_chain_fuids	subject	issuer	client_subject	client_issuer
 #types	time	string	addr	port	addr	port	string	string	string	string	bool	string	string	bool	vector[string]	vector[string]	string	string	string	string
-XXXXXXXXXX.XXXXXX	CHhAvVGS1DHFjwGM9	192.168.6.203	53226	52.32.149.186	443	-	-	-	tls13.crypto.mozilla.org	F	protocol_version	-	F	-	-	-	-	-	-
 XXXXXXXXXX.XXXXXX	ClEkJM2Vm5giqnMf4h	192.168.6.203	53227	52.32.149.186	443	-	-	-	tls13.crypto.mozilla.org	F	protocol_version	-	F	-	-	-	-	-	-
+XXXXXXXXXX.XXXXXX	CHhAvVGS1DHFjwGM9	192.168.6.203	53226	52.32.149.186	443	-	-	-	tls13.crypto.mozilla.org	F	protocol_version	-	F	-	-	-	-	-	-
 #close XXXX-XX-XX-XX-XX-XX
 #separator \x09
 #set_separator	,

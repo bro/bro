@@ -10,6 +10,7 @@
 #include "zeek/PacketFilter.h"
 #include "zeek/NetVar.h"
 #include "zeek/analyzer/protocol/tcp/Stats.h"
+#include "zeek/Hash.h"
 
 namespace zeek {
 
@@ -61,7 +62,7 @@ public:
 	Connection* FindConnection(const detail::ConnIDKey& key, TransportProto proto);
 
 	void Remove(Session* s);
-	void Insert(Connection* c, bool remove_existing = true);
+	void Insert(Session* c, bool remove_existing = true);
 
 	// Generating connection_pending events for all connections
 	// that are still active.
@@ -88,7 +89,7 @@ public:
 
 	unsigned int CurrentConnections()
 		{
-		return conns.size();
+		return sessions.size();
 		}
 
 	[[deprecated("Remove in v5.1. Use packet_analysis::IP::IPAnalyzer::ParseIPPacket.")]]
@@ -102,19 +103,18 @@ public:
 
 private:
 
-	using ConnectionMap = std::map<detail::ConnIDKey, Connection*>;
+	using SessionMap = std::map<detail::hash_t, Session*>;
 
-	Connection* LookupConn(const ConnectionMap& conns, const detail::ConnIDKey& key);
+	Session* Lookup(detail::hash_t hash);
 
 	// Inserts a new connection into the sessions map. If a connection with
 	// the same key already exists in the map, it will be overwritten by
 	// the new one.  Connection count stats get updated either way (so most
 	// cases should likely check that the key is not already in the map to
 	// avoid unnecessary incrementing of connecting counts).
-	void InsertConnection(const detail::ConnIDKey& key, Connection* conn);
+	void InsertSession(detail::hash_t, Session* session);
 
-	ConnectionMap conns;
-
+	SessionMap sessions;
 	SessionStats stats;
 
 	analyzer::stepping_stone::SteppingStoneManager* stp_manager;
