@@ -3,7 +3,7 @@
 # @TEST-EXEC-FAIL: unset ZEEK_ALLOW_INIT_ERRORS && zeek -b %INPUT >out 2>&1
 # @TEST-EXEC: TEST_DIFF_CANONIFIER=$SCRIPTS/diff-remove-abspath btest-diff out
 
-event zeek_init() &priority=10
+event zeek_init() &priority=15
 	{
 	print "1st event";
 	}
