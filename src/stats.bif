@@ -88,7 +88,7 @@ function get_conn_stats%(%): ConnStats
 
 	r->Assign(n++, zeek::val_mgr->Count(Connection::TotalConnections()));
 	r->Assign(n++, zeek::val_mgr->Count(Connection::CurrentConnections()));
-	r->Assign(n++, zeek::val_mgr->Count(sessions->CurrentConnections()));
+	r->Assign(n++, zeek::val_mgr->Count(sessions->CurrentSessions()));
 
 	SessionStats s;
 	if ( sessions )

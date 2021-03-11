@@ -126,21 +126,21 @@ void ProfileLogger::Log()
 		run_state::network_time, (utime + stime) - (first_utime + first_stime),
 		utime - first_utime, stime - first_stime, rtime - first_rtime));
 
-	int conn_mem_use = expensive ? sessions->ConnectionMemoryUsage() : 0;
+	int conn_mem_use = expensive ? sessions->SessionMemoryUsage() : 0;
 	double avg_conn_mem_use = 0;
 
-	if ( expensive && sessions->CurrentConnections() != 0 )
-		avg_conn_mem_use = conn_mem_use / static_cast<double>(sessions->CurrentConnections());
+	if ( expensive && sessions->CurrentSessions() != 0 )
+		avg_conn_mem_use = conn_mem_use / static_cast<double>(sessions->CurrentSessions());
 
 	file->Write(util::fmt("%.06f Conns: total=%" PRIu64 " current=%" PRIu64 "/%" PRIi32 " mem=%" PRIi32 "K avg=%.1f table=%" PRIu32 "K connvals=%" PRIu32 "K\n",
 		run_state::network_time,
 		Connection::TotalConnections(),
 		Connection::CurrentConnections(),
-		sessions->CurrentConnections(),
+        sessions->CurrentSessions(),
 		conn_mem_use,
 		avg_conn_mem_use,
 		expensive ? sessions->MemoryAllocation() / 1024 : 0,
-		expensive ? sessions->ConnectionMemoryUsageConnVals() / 1024 : 0
+		expensive ? sessions->SessionMemoryUsageVals() / 1024 : 0
 		));
 
 	SessionStats s;

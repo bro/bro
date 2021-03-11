@@ -249,13 +249,13 @@ void NetSessions::Weird(const char* name, const IP_Hdr* ip, const char* addl)
 	reporter->Weird(ip->SrcAddr(), ip->DstAddr(), name, addl);
 	}
 
-unsigned int NetSessions::ConnectionMemoryUsage()
+unsigned int NetSessions::SessionMemoryUsage()
 	{
-	unsigned int mem = 0;
-
 	if ( run_state::terminating )
-		// Connections have been flushed already.
+		// Sessions have been flushed already.
 		return 0;
+
+	unsigned int mem = 0;
 
 	for ( const auto& entry : sessions )
 		mem += entry.second->MemoryAllocation();
@@ -263,7 +263,7 @@ unsigned int NetSessions::ConnectionMemoryUsage()
 	return mem;
 	}
 
-unsigned int NetSessions::ConnectionMemoryUsageConnVals()
+unsigned int NetSessions::SessionMemoryUsageVals()
 	{
 	unsigned int mem = 0;
 
@@ -272,7 +272,7 @@ unsigned int NetSessions::ConnectionMemoryUsageConnVals()
 		return 0;
 
 	for ( const auto& entry : sessions )
-		mem += entry.second->MemoryAllocationConnVal();
+		mem += entry.second->MemoryAllocationVal();
 
 	return mem;
 	}
@@ -283,7 +283,7 @@ unsigned int NetSessions::MemoryAllocation()
 		// Sessions have been flushed already.
 		return 0;
 
-	return ConnectionMemoryUsage()
+	return SessionMemoryUsage()
 		+ padded_sizeof(*this)
 		+ (sessions.size() * sizeof(SessionMap::key_type) + sizeof(SessionMap::value_type))
 		+ detail::fragment_mgr->MemoryAllocation();

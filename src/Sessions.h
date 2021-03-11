@@ -83,7 +83,7 @@ public:
 		return packet_filter;
 		}
 
-	unsigned int CurrentConnections()
+	unsigned int CurrentSessions()
 		{
 		return sessions.size();
 		}
@@ -92,8 +92,8 @@ public:
 	int ParseIPPacket(int caplen, const u_char* const pkt, int proto,
 	                  IP_Hdr*& inner);
 
-	unsigned int ConnectionMemoryUsage();
-	unsigned int ConnectionMemoryUsageConnVals();
+	unsigned int SessionMemoryUsage();
+	unsigned int SessionMemoryUsageVals();
 	unsigned int MemoryAllocation();
 
 	// TODO: should this move somewhere else?

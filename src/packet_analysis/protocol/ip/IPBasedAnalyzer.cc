@@ -64,11 +64,11 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 	zeek::ValPtr pkt_hdr_val = ip_hdr->ToPktHdrVal();
 
 	if ( ipv6_ext_headers && ip_hdr->NumHeaders() > 1 )
-		conn->EnqueueEvent(ipv6_ext_headers, nullptr, conn->ConnVal(),
+		conn->EnqueueEvent(ipv6_ext_headers, nullptr, conn->GetVal(),
 		                   pkt_hdr_val);
 
 	if ( new_packet )
-		conn->EnqueueEvent(new_packet, nullptr, conn->ConnVal(), std::move(pkt_hdr_val));
+		conn->EnqueueEvent(new_packet, nullptr, conn->GetVal(), std::move(pkt_hdr_val));
 
 	int record_packet = 1;	// whether to record the packet at all
 	int record_content = 1;	// whether to record its data

@@ -79,16 +79,15 @@ public:
 		{ record_current_content = do_record ? 1 : 0; }
 
 	/**
-	 * Returns the associated "session" record.
-	 * TODO: rename this to SessionVal(). This requires a swath of other changes.
+	 * Returns the associated record val for this session.
 	 */
-	virtual const RecordValPtr& ConnVal() = 0;
+	virtual const RecordValPtr& GetVal() = 0;
 
 	/**
 	 * Return the memory allocation required by the session record. This requires at
-	 * least one call to ConnVal() first in order to setup the record object.
+	 * least one call to GetVal() first in order to setup the record object.
 	 */
-	virtual unsigned int MemoryAllocationConnVal() const = 0;
+	virtual unsigned int MemoryAllocationVal() const = 0;
 
 	/**
 	 * A lower-bound calculation of how much memory a session object is using.
