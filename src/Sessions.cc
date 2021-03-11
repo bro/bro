@@ -23,34 +23,18 @@
 
 #include "zeek/analyzer/protocol/icmp/ICMP.h"
 #include "zeek/analyzer/protocol/udp/UDP.h"
-#include "zeek/analyzer/protocol/stepping-stone/SteppingStone.h"
 #include "zeek/analyzer/Manager.h"
 
 #include "zeek/iosource/IOSource.h"
 #include "zeek/packet_analysis/Manager.h"
 #include "zeek/packet_analysis/protocol/ip/IP.h"
 
-#include "zeek/analyzer/protocol/stepping-stone/events.bif.h"
-
-// These represent NetBIOS services on ephemeral ports.  They're numbered
-// so that we can use a single int to hold either an actual TCP/UDP server
-// port or one of these.
-enum NetBIOS_Service {
-	NETBIOS_SERVICE_START = 0x10000L,	// larger than any port
-	NETBIOS_SERVICE_DCE_RPC,
-};
-
-zeek::NetSessions* zeek::sessions;
-
 namespace zeek {
+
+NetSessions* sessions;
 
 NetSessions::NetSessions()
 	{
-	if ( stp_correlate_pair )
-		stp_manager = new analyzer::stepping_stone::SteppingStoneManager();
-	else
-		stp_manager = nullptr;
-
 	packet_filter = nullptr;
 
 	memset(&stats, 0, sizeof(SessionStats));
@@ -59,7 +43,6 @@ NetSessions::NetSessions()
 NetSessions::~NetSessions()
 	{
 	delete packet_filter;
-	delete stp_manager;
 
 	Clear();
 	}
@@ -152,23 +135,10 @@ void NetSessions::Remove(Session* s)
 	if ( s->IsKeyValid() )
 		{
 		s->CancelTimers();
-
-		// TODO: what should I do with this?
-		Connection* c = static_cast<Connection*>(s);
-		if ( c->ConnTransport() == TRANSPORT_TCP )
-			{
-			auto ta = static_cast<analyzer::tcp::TCP_Analyzer*>(c->GetRootAnalyzer());
-			assert(ta->IsAnalyzer("TCP"));
-			analyzer::tcp::TCP_Endpoint* to = ta->Orig();
-			analyzer::tcp::TCP_Endpoint* tr = ta->Resp();
-
-			tcp_stats.StateLeft(to->state, tr->state);
-			}
-
 		s->Done();
 		s->RemovalEvent();
 
-		// Cleares out the session's copy of the key so that if the
+		// Clears out the session's copy of the key so that if the
 		// session has been Ref()'d somewhere, we know that on a future
 		// call to Remove() that it's no longer in the map.
 		detail::hash_t hash = s->HashKey()->Hash();

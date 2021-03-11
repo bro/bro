@@ -9,8 +9,8 @@
 #include "zeek/Frag.h"
 #include "zeek/PacketFilter.h"
 #include "zeek/NetVar.h"
-#include "zeek/analyzer/protocol/tcp/Stats.h"
 #include "zeek/Hash.h"
+#include "zeek/analyzer/protocol/tcp/Stats.h"
 
 namespace zeek {
 
@@ -19,8 +19,6 @@ class Packet;
 class Connection;
 class Session;
 struct ConnID;
-
-namespace analyzer::stepping_stone { class SteppingStoneManager; }
 
 struct SessionStats {
 	size_t num_TCP_conns;
@@ -85,8 +83,6 @@ public:
 		return packet_filter;
 		}
 
-	analyzer::stepping_stone::SteppingStoneManager* GetSTPManager()	{ return stp_manager; }
-
 	unsigned int CurrentConnections()
 		{
 		return sessions.size();
@@ -99,6 +95,8 @@ public:
 	unsigned int ConnectionMemoryUsage();
 	unsigned int ConnectionMemoryUsageConnVals();
 	unsigned int MemoryAllocation();
+
+	// TODO: should this move somewhere else?
 	analyzer::tcp::TCPStateStats tcp_stats;	// keeps statistics on TCP states
 
 private:
@@ -117,7 +115,6 @@ private:
 	SessionMap sessions;
 	SessionStats stats;
 
-	analyzer::stepping_stone::SteppingStoneManager* stp_manager;
 	detail::PacketFilter* packet_filter;
 };
 
