@@ -2,7 +2,7 @@
 
 #include "zeek/packet_analysis/protocol/tcp/TCP.h"
 #include "zeek/RunState.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/Conn.h"
 
 using namespace zeek::packet_analysis::TCP;

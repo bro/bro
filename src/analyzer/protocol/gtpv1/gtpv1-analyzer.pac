@@ -1,5 +1,5 @@
 %extern{
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/ZeekString.h"
 #include "zeek/analyzer/protocol/gtpv1/GTPv1.h"
 %}

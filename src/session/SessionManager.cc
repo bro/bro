@@ -1,7 +1,7 @@
 // See the file "COPYING" in the main distribution directory for copyright.
 
 #include "zeek/zeek-config.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -18,7 +18,7 @@
 #include "zeek/NetVar.h"
 #include "zeek/Reporter.h"
 #include "zeek/RuleMatcher.h"
-#include "zeek/Session.h"
+#include "zeek/session/Session.h"
 #include "zeek/TunnelEncapsulation.h"
 
 #include "zeek/analyzer/protocol/icmp/ICMP.h"
@@ -31,33 +31,34 @@
 
 namespace zeek {
 
-NetSessions* sessions;
+SessionManager* session_mgr = nullptr;
+SessionManager*& sessions = session_mgr;
 
-NetSessions::NetSessions()
+SessionManager::SessionManager()
 	{
 	packet_filter = nullptr;
 
 	memset(&stats, 0, sizeof(SessionStats));
 	}
 
-NetSessions::~NetSessions()
+SessionManager::~SessionManager()
 	{
 	delete packet_filter;
 
 	Clear();
 	}
 
-void NetSessions::Done()
+void SessionManager::Done()
 	{
 	}
 
-int NetSessions::ParseIPPacket(int caplen, const u_char* const pkt, int proto,
+int SessionManager::ParseIPPacket(int caplen, const u_char* const pkt, int proto,
                                IP_Hdr*& inner)
 	{
 	return packet_analysis::IP::IPAnalyzer::ParseIPPacket(caplen, pkt, proto, inner);
 	}
 
-Connection* NetSessions::FindConnection(Val* v)
+Connection* SessionManager::FindConnection(Val* v)
 	{
 	const auto& vt = v->GetType();
 	if ( ! IsRecord(vt->Tag()) )
@@ -119,7 +120,7 @@ Connection* NetSessions::FindConnection(Val* v)
 	return conn;
 	}
 
-Connection* NetSessions::FindConnection(const detail::ConnIDKey& key, TransportProto proto)
+Connection* SessionManager::FindConnection(const detail::ConnIDKey& key, TransportProto proto)
 	{
 	Connection* conn = nullptr;
 
@@ -130,7 +131,7 @@ Connection* NetSessions::FindConnection(const detail::ConnIDKey& key, TransportP
 	return conn;
 	}
 
-void NetSessions::Remove(Session* s)
+void SessionManager::Remove(Session* s)
 	{
 	if ( s->IsKeyValid() )
 		{
@@ -151,7 +152,7 @@ void NetSessions::Remove(Session* s)
 		}
 	}
 
-void NetSessions::Insert(Session* s, bool remove_existing)
+void SessionManager::Insert(Session* s, bool remove_existing)
 	{
 	assert(s->IsKeyValid());
 
@@ -176,7 +177,7 @@ void NetSessions::Insert(Session* s, bool remove_existing)
 		}
 	}
 
-void NetSessions::Drain()
+void SessionManager::Drain()
 	{
 	for ( const auto& entry : sessions )
 		{
@@ -186,7 +187,7 @@ void NetSessions::Drain()
 		}
 	}
 
-void NetSessions::Clear()
+void SessionManager::Clear()
 	{
 	for ( const auto& entry : sessions )
 		Unref(entry.second);
@@ -196,7 +197,7 @@ void NetSessions::Clear()
 	detail::fragment_mgr->Clear();
 	}
 
-void NetSessions::GetStats(SessionStats& s) const
+void SessionManager::GetStats(SessionStats& s) const
 	{
 	// TODO: figure this out
 	// s.num_TCP_conns = tcp_conns.size();
@@ -214,7 +215,7 @@ void NetSessions::GetStats(SessionStats& s) const
 	s.max_fragments = detail::fragment_mgr->MaxFragments();
 	}
 
-Session* NetSessions::Lookup(detail::hash_t hash)
+Session* SessionManager::Lookup(detail::hash_t hash)
 	{
 	auto it = sessions.find(hash);
 	if ( it != sessions.end() )
@@ -223,7 +224,7 @@ Session* NetSessions::Lookup(detail::hash_t hash)
 	return nullptr;
 	}
 
-void NetSessions::Weird(const char* name, const Packet* pkt, const char* addl, const char* source)
+void SessionManager::Weird(const char* name, const Packet* pkt, const char* addl, const char* source)
 	{
 	const char* weird_name = name;
 
@@ -244,12 +245,12 @@ void NetSessions::Weird(const char* name, const Packet* pkt, const char* addl, c
 	reporter->Weird(weird_name, addl, source);
 	}
 
-void NetSessions::Weird(const char* name, const IP_Hdr* ip, const char* addl)
+void SessionManager::Weird(const char* name, const IP_Hdr* ip, const char* addl)
 	{
 	reporter->Weird(ip->SrcAddr(), ip->DstAddr(), name, addl);
 	}
 
-unsigned int NetSessions::SessionMemoryUsage()
+unsigned int SessionManager::SessionMemoryUsage()
 	{
 	if ( run_state::terminating )
 		// Sessions have been flushed already.
@@ -263,7 +264,7 @@ unsigned int NetSessions::SessionMemoryUsage()
 	return mem;
 	}
 
-unsigned int NetSessions::SessionMemoryUsageVals()
+unsigned int SessionManager::SessionMemoryUsageVals()
 	{
 	unsigned int mem = 0;
 
@@ -277,7 +278,7 @@ unsigned int NetSessions::SessionMemoryUsageVals()
 	return mem;
 	}
 
-unsigned int NetSessions::MemoryAllocation()
+unsigned int SessionManager::MemoryAllocation()
 	{
 	if ( run_state::terminating )
 		// Sessions have been flushed already.
@@ -291,7 +292,7 @@ unsigned int NetSessions::MemoryAllocation()
 		;
 	}
 
-void NetSessions::InsertSession(detail::hash_t hash, Session* session)
+void SessionManager::InsertSession(detail::hash_t hash, Session* session)
 	{
 	sessions[hash] = session;
 

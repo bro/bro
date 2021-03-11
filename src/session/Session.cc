@@ -1,13 +1,13 @@
 // See the file "COPYING" in the main distribution directory for copyright.
 
-#include "zeek/Session.h"
+#include "zeek/session/Session.h"
 
 #include "zeek/Reporter.h"
 #include "zeek/analyzer/Analyzer.h"
 #include "zeek/Val.h"
 #include "zeek/Event.h"
 #include "zeek/Desc.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/IP.h"
 
 namespace zeek {
@@ -157,7 +157,7 @@ void Session::DeleteTimer(double /* t */)
 	if ( is_active )
 		Event(session_timeout_event, nullptr);
 
-	sessions->Remove(this);
+	session_mgr->Remove(this);
 	}
 
 void Session::AddTimer(timer_func timer, double t, bool do_expire,
@@ -187,7 +187,7 @@ void Session::InactivityTimer(double t)
 	if ( last_time + inactivity_timeout <= t )
 		{
 		Event(session_timeout_event, nullptr);
-		sessions->Remove(this);
+		session_mgr->Remove(this);
 		++detail::killed_by_inactivity;
 		}
 	else
@@ -207,7 +207,7 @@ void Session::StatusUpdateTimer(double t)
 void Session::RemoveConnectionTimer(double t)
 	{
 	RemovalEvent();
-	sessions->Remove(this);
+	session_mgr->Remove(this);
 	}
 
 } // namespace zeek

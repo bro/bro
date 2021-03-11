@@ -2,7 +2,7 @@
 
 #include "zeek/packet_analysis/protocol/icmp/ICMP.h"
 #include "zeek/RunState.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/Conn.h"
 #include "zeek/analyzer/protocol/icmp/ICMP.h"
 

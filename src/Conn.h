@@ -16,7 +16,7 @@
 #include "zeek/WeirdState.h"
 #include "zeek/ZeekArgs.h"
 #include "zeek/IntrusivePtr.h"
-#include "zeek/Session.h"
+#include "zeek/session/Session.h"
 #include "zeek/iosource/Packet.h"
 
 #include "zeek/analyzer/Tag.h"
@@ -25,7 +25,7 @@
 namespace zeek {
 
 class Connection;
-class NetSessions;
+class SessionManager;
 class EncapsulationStack;
 class Val;
 class RecordVal;
@@ -75,7 +75,7 @@ class BaseConnection : public Obj {};
 class Connection final : public Session {
 public:
 
-	Connection(NetSessions* s, const detail::ConnIDKey& k, double t, const ConnID* id,
+	Connection(SessionManager* s, const detail::ConnIDKey& k, double t, const ConnID* id,
 	           uint32_t flow, const Packet* pkt);
 	~Connection() override;
 
@@ -256,7 +256,7 @@ protected:
 	// Allow other classes to access pointers to these:
 	friend class detail::SessionTimer;
 
-	NetSessions* sessions;
+	SessionManager* sessions;
 	detail::ConnIDKey key;
 	std::unique_ptr<detail::HashKey> hash_key;
 	bool key_valid;

@@ -88,14 +88,14 @@ function get_conn_stats%(%): ConnStats
 
 	r->Assign(n++, zeek::val_mgr->Count(Connection::TotalConnections()));
 	r->Assign(n++, zeek::val_mgr->Count(Connection::CurrentConnections()));
-	r->Assign(n++, zeek::val_mgr->Count(sessions->CurrentSessions()));
+	r->Assign(n++, zeek::val_mgr->Count(session_mgr->CurrentSessions()));
 
 	SessionStats s;
-	if ( sessions )
-		sessions->GetStats(s);
+	if ( session_mgr )
+		session_mgr->GetStats(s);
 
 #define ADD_STAT(x) \
-	r->Assign(n++, zeek::val_mgr->Count(unsigned(sessions ? x : 0)));
+	r->Assign(n++, zeek::val_mgr->Count(unsigned(session_mgr ? x : 0)));
 
 	ADD_STAT(s.num_packets);
 	ADD_STAT(s.num_fragments);

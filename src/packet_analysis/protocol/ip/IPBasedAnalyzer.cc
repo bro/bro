@@ -5,7 +5,7 @@
 #include "zeek/RunState.h"
 #include "zeek/Conn.h"
 #include "zeek/Val.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/analyzer/Manager.h"
 
 using namespace zeek;
@@ -26,7 +26,7 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 	detail::ConnIDKey key = detail::BuildConnIDKey(conn_id);
 
 	// TODO: check with the session manager to see whether this connection exists
-	Connection* conn = sessions->FindConnection(key, GetTransportProto());
+	Connection* conn = session_mgr->FindConnection(key, GetTransportProto());
 
 	if ( ! conn )
 		{
@@ -147,7 +147,7 @@ zeek::Connection* IPBasedAnalyzer::NewConn(const ConnID* id, const detail::ConnI
 
 	// TODO: we shouldn't pass down the session manager to Connection anymore, since Connection
 	// may not go into that analyzer tree.
-	Connection* conn = new Connection(sessions, key, t, id, pkt->ip_hdr->FlowLabel(), pkt);
+	Connection* conn = new Connection(session_mgr, key, t, id, pkt->ip_hdr->FlowLabel(), pkt);
 	conn->SetTransport(GetTransportProto());
 
 	if ( flip )
@@ -168,15 +168,12 @@ zeek::Connection* IPBasedAnalyzer::NewConn(const ConnID* id, const detail::ConnI
 
 void IPBasedAnalyzer::Insert(Connection* c)
 	{
-	// TODO: temporarily use sessions for this until i can redo all of that code
-	sessions->Insert(c, false);
+	session_mgr->Insert(c, false);
 
-	// TODO: insert connection into session manager
 	// TODO: update statistics for child class
 	}
 
 void IPBasedAnalyzer::Remove(Connection* c)
 	{
-	// TODO: temporarily use sessions for this until i can redo all of that code
-	sessions->Remove(c);
+	session_mgr->Remove(c);
 	}

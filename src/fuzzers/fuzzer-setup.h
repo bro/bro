@@ -6,7 +6,7 @@
 #include "zeek/zeek-setup.h"
 
 #include "zeek/Event.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/broker/Manager.h"
 #include "zeek/file_analysis/Manager.h"
 
@@ -55,9 +55,9 @@ void fuzzer_cleanup_one_input()
 	timer_mgr->Expire();
 
 	zeek::event_mgr.Drain();
-	sessions->Drain();
+	session_mgr->Drain();
 	zeek::event_mgr.Drain();
-	sessions->Clear();
+	session_mgr->Clear();
 	run_state::terminating = false;
 	}
 

@@ -5,7 +5,7 @@
 #include "zeek/IP.h"
 #include "zeek/Discard.h"
 #include "zeek/PacketFilter.h"
-#include "zeek/Sessions.h"
+#include "zeek/session/SessionManager.h"
 #include "zeek/RunState.h"
 #include "zeek/Frag.h"
 #include "zeek/Event.h"
@@ -122,7 +122,7 @@ bool IPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet)
 		}
 
 	// Ignore if packet matches packet filter.
-	detail::PacketFilter* packet_filter = sessions->GetPacketFilter(false);
+	detail::PacketFilter* packet_filter = session_mgr->GetPacketFilter(false);
 	if ( packet_filter && packet_filter->Match(packet->ip_hdr, total_len, len) )
 		 return false;
 

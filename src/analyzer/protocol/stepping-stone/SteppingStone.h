@@ -5,11 +5,7 @@
 #include "zeek/Queue.h"
 #include "zeek/analyzer/protocol/tcp/TCP.h"
 
-namespace zeek {
-
-class NetSessions;
-
-namespace analyzer::stepping_stone {
+namespace zeek::analyzer::stepping_stone {
 
 class SteppingStoneEndpoint;
 class SteppingStoneManager;
@@ -87,5 +83,4 @@ protected:
 	static SteppingStoneManager* instance;
 };
 
-} // namespace analyzer::stepping_stone
-} // namespace zeek
+} // namespace zeek::analyzer::stepping_stone
