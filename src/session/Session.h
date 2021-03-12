@@ -209,15 +209,16 @@ protected:
 	TimerPList timers;
 	double inactivity_timeout;
 
+	EventHandlerPtr session_timeout_event;
+	EventHandlerPtr session_status_update_event;
+	double session_status_update_interval;
+
 	unsigned int installed_status_timer:1;
 	unsigned int timers_canceled:1;
 	unsigned int is_active:1;
 	unsigned int record_packets:1, record_contents:1;
 	unsigned int record_current_packet:1, record_current_content:1;
 
-	EventHandlerPtr session_timeout_event;
-	EventHandlerPtr session_status_update_event;
-	double session_status_update_interval;
 };
 
 namespace detail {

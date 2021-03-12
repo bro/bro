@@ -255,10 +255,6 @@ protected:
 	// Allow other classes to access pointers to these:
 	friend class detail::SessionTimer;
 
-	detail::ConnIDKey key;
-	std::unique_ptr<detail::HashKey> hash_key;
-	bool key_valid;
-
 	IPAddr orig_addr;
 	IPAddr resp_addr;
 	uint32_t orig_port, resp_port;	// in network order
@@ -267,27 +263,31 @@ protected:
 	uint32_t vlan, inner_vlan;	// VLAN this connection traverses, if available
 	u_char orig_l2_addr[Packet::L2_ADDR_LEN];	// Link-layer originator address, if available
 	u_char resp_l2_addr[Packet::L2_ADDR_LEN];	// Link-layer responder address, if available
+	int suppress_event;	// suppress certain events to once per conn.
 	RecordValPtr conn_val;
 	std::shared_ptr<EncapsulationStack> encapsulation; // tunnels
-	int suppress_event;	// suppress certain events to once per conn.
+
+	detail::ConnIDKey key;
+	std::unique_ptr<detail::HashKey> hash_key;
+	bool key_valid;
 
 	unsigned int skip:1;
 	unsigned int weird:1;
 	unsigned int finished:1;
 	unsigned int saw_first_orig_packet:1, saw_first_resp_packet:1;
 
-	// Count number of connections.
-	static uint64_t total_connections;
-	static uint64_t current_connections;
-
-	std::string history;
 	uint32_t hist_seen;
+	std::string history;
 
 	analyzer::TransportLayerAnalyzer* root_analyzer;
 	analyzer::pia::PIA* primary_PIA;
 
 	UID uid;	// Globally unique connection ID.
 	detail::WeirdStateMap weird_state;
+
+	// Count number of connections.
+	static uint64_t total_connections;
+	static uint64_t current_connections;
 };
 
 } // namespace zeek
