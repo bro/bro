@@ -77,21 +77,18 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 	conn->NextPacket(run_state::processing_start_time, is_orig, ip_hdr.get(), ip_hdr->PayloadLen(),
 	                 remaining, data, record_packet, record_content, pkt);
 
-	// TODO: this doesn't feel right here but it doesn't feel right in the IP analyzer
-	// either. If we're not handling something IP-based, how does the packet get recorded?
-
-	// We skip this block for reassembled packets because the pointer
-	// math wouldn't work.
-	if ( ! ip_hdr->reassembled && record_packet )
+	// If the packet is reassembled, disable packet dumping because the
+	// pointer math to dump the data wouldn't work.
+	if ( ip_hdr->reassembled )
+		pkt->dump_packet = false;
+	else if ( record_packet )
 		{
-		if ( record_content )
-			pkt->dump_packet = true;	// save the whole thing
+		pkt->dump_packet = true;
 
-		else
-			{
-			int hdr_len = data - pkt->data;
-			packet_mgr->DumpPacket(pkt, hdr_len);	// just save the header
-			}
+		// If we don't want the content, set the dump size to include just
+		// the header.
+		if ( ! record_content )
+			pkt->dump_size = data - pkt->data;
 		}
 	}
 

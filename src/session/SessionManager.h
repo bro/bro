@@ -63,11 +63,14 @@ public:
 	void Remove(Session* s);
 	void Insert(Session* c, bool remove_existing = true);
 
-	// Generating connection_pending events for all connections
-	// that are still active.
+	/**
+	 * Generate events for all sessions that are still active.
+	 */
 	void Drain();
 
-	// Clears the session maps.
+	/**
+	 * Clear all existing sessions.
+	 */
 	void Clear();
 
 	void GetStats(SessionStats& s) const;
