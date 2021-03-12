@@ -2,9 +2,10 @@
 
 #include "zeek/packet_analysis/protocol/icmp/ICMP.h"
 #include "zeek/RunState.h"
-#include "zeek/session/SessionManager.h"
 #include "zeek/Conn.h"
+#include "zeek/Reporter.h"
 #include "zeek/analyzer/protocol/icmp/ICMP.h"
+#include "zeek/session/SessionManager.h"
 
 using namespace zeek::packet_analysis::ICMP;
 
@@ -50,7 +51,8 @@ bool ICMPAnalyzer::AnalyzePacket(size_t len, const uint8_t* data, Packet* packet
 		}
 	else
 		{
-		// TODO: how'd we get here?
+		reporter->InternalError("Reached ICMP packet analyzer with unknown packet protocol %x",
+		                        packet->proto);
 		}
 
 	ProcessConnection(id, packet, len);

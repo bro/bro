@@ -25,12 +25,11 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 	const std::unique_ptr<IP_Hdr>& ip_hdr = pkt->ip_hdr;
 	detail::ConnIDKey key = detail::BuildConnIDKey(conn_id);
 
-	// TODO: check with the session manager to see whether this connection exists
 	Connection* conn = session_mgr->FindConnection(key, GetTransportProto());
 
 	if ( ! conn )
 		{
-		conn = NewConn(&conn_id, key, run_state::processing_start_time, pkt);
+		conn = NewConn(&conn_id, key, pkt);
 		if ( conn )
 			Insert(conn);
 		}
@@ -43,7 +42,7 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 			// TODO: why do we do this Insert/Recreate/Remove dance here? Why can't the
 			// existing connection object just be "refreshed" in some way?
 			Remove(conn);
-			conn = NewConn(&conn_id, key, run_state::processing_start_time, pkt);
+			conn = NewConn(&conn_id, key, pkt);
 			if ( conn )
 				Insert(conn);
 			}
@@ -73,7 +72,6 @@ void IPBasedAnalyzer::ProcessConnection(const ConnID& conn_id, const Packet* pkt
 	int record_packet = 1;	// whether to record the packet at all
 	int record_content = 1;	// whether to record its data
 
-	// TODO: do this here, or pass it down from the child analyzer?
 	const u_char* data = pkt->ip_hdr->Payload();
 
 	conn->NextPacket(run_state::processing_start_time, is_orig, ip_hdr.get(), ip_hdr->PayloadLen(),
@@ -134,9 +132,7 @@ bool IPBasedAnalyzer::IsLikelyServerPort(uint32_t port) const
 	return port_cache.find(port) != port_cache.end();
 	}
 
-// TODO: this probably doesn't need to take a time value here. Just use the run_state.
-zeek::Connection* IPBasedAnalyzer::NewConn(const ConnID* id, const detail::ConnIDKey& key,
-                                           double t, const Packet* pkt)
+zeek::Connection* IPBasedAnalyzer::NewConn(const ConnID* id, const detail::ConnIDKey& key, const Packet* pkt)
 	{
 	int src_h = ntohs(id->src_port);
 	int dst_h = ntohs(id->dst_port);
@@ -145,9 +141,8 @@ zeek::Connection* IPBasedAnalyzer::NewConn(const ConnID* id, const detail::ConnI
 	if ( ! WantConnection(src_h, dst_h, pkt->ip_hdr->Payload(), flip) )
 		return nullptr;
 
-	// TODO: we shouldn't pass down the session manager to Connection anymore, since Connection
-	// may not go into that analyzer tree.
-	Connection* conn = new Connection(session_mgr, key, t, id, pkt->ip_hdr->FlowLabel(), pkt);
+	Connection* conn = new Connection(key, run_state::processing_start_time,
+	                                  id, pkt->ip_hdr->FlowLabel(), pkt);
 	conn->SetTransport(GetTransportProto());
 
 	if ( flip )

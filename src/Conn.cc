@@ -25,12 +25,11 @@ namespace zeek {
 uint64_t Connection::total_connections = 0;
 uint64_t Connection::current_connections = 0;
 
-Connection::Connection(SessionManager* s, const detail::ConnIDKey& k, double t,
+Connection::Connection(const detail::ConnIDKey& k, double t,
                        const ConnID* id, uint32_t flow, const Packet* pkt)
 	: Session(t, connection_timeout, connection_status_update,
 	          detail::connection_status_update_interval)
 	{
-	sessions = s;
 	key = k;
 	hash_key = k.GetHashKey();
 	key_valid = true;
@@ -128,9 +127,8 @@ void Connection::CheckEncapsulation(const std::shared_ptr<EncapsulationStack>& a
 
 void Connection::Done()
 	{
-	// TODO: this still doesn't feel like the right place to do this, but it's better
-	// here than in SessionManager. This really should be down in the TCP analyzer
-	// somewhere, but it's session-related, so maybe not?
+	// This doesn't feel like the right place to do this but it's better than in
+	// SessionManager, which shouldn't care about protocols.
 	if ( ConnTransport() == TRANSPORT_TCP )
 		{
 		auto ta = static_cast<analyzer::tcp::TCP_Analyzer*>(GetRootAnalyzer());

@@ -88,11 +88,10 @@ private:
 	 * @param id A connection ID generated from the packet data. This should have been
 	 * passed in from a child analyzer.
 	 * @param key A connection ID key generated from the ID.
-	 * @param t The timestamp for the current packet.
 	 * @param pkt The packet associated with the new connection.
 	 */
 	zeek::Connection* NewConn(const ConnID* id, const detail::ConnIDKey& key,
-	                          double t, const Packet* pkt);
+	                          const Packet* pkt);
 
 	/**
 	 * Removes a connection from the session manager.
