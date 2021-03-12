@@ -36,15 +36,11 @@ SessionManager*& sessions = session_mgr;
 
 SessionManager::SessionManager()
 	{
-	packet_filter = nullptr;
-
 	memset(&stats, 0, sizeof(SessionStats));
 	}
 
 SessionManager::~SessionManager()
 	{
-	delete packet_filter;
-
 	Clear();
 	}
 
@@ -318,6 +314,11 @@ void SessionManager::InsertSession(detail::hash_t hash, Session* session)
 		default: break;
 		}
 	*/
+	}
+
+detail::PacketFilter* GetPacketFilter(bool init=true)
+	{
+	return packet_mgr->GetPacketFilter(init);
 	}
 
 } // namespace zeek

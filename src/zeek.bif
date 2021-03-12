@@ -28,6 +28,7 @@
 #include "zeek/IntrusivePtr.h"
 #include "zeek/input.h"
 #include "zeek/Hash.h"
+#include "zeek/packet_analysis/Manager.h"
 
 using namespace std;
 
@@ -4968,7 +4969,7 @@ function enable_raw_output%(f: file%): any
 ## .. todo:: The return value should be changed to any.
 function install_src_addr_filter%(ip: addr, tcp_flags: count, prob: double%) : bool
 	%{
-	session_mgr->GetPacketFilter()->AddSrc(ip->AsAddr(), tcp_flags, prob);
+	packet_mgr->GetPacketFilter()->AddSrc(ip->AsAddr(), tcp_flags, prob);
 	return zeek::val_mgr->True();
 	%}
 
@@ -4998,7 +4999,7 @@ function install_src_addr_filter%(ip: addr, tcp_flags: count, prob: double%) : b
 ## .. todo:: The return value should be changed to any.
 function install_src_net_filter%(snet: subnet, tcp_flags: count, prob: double%) : bool
 	%{
-	session_mgr->GetPacketFilter()->AddSrc(snet, tcp_flags, prob);
+	packet_mgr->GetPacketFilter()->AddSrc(snet, tcp_flags, prob);
 	return zeek::val_mgr->True();
 	%}
 
@@ -5020,7 +5021,7 @@ function install_src_net_filter%(snet: subnet, tcp_flags: count, prob: double%) 
 ##              Pcap::error
 function uninstall_src_addr_filter%(ip: addr%) : bool
 	%{
-	return zeek::val_mgr->Bool(session_mgr->GetPacketFilter()->RemoveSrc(ip->AsAddr()));
+	return zeek::val_mgr->Bool(packet_mgr->GetPacketFilter()->RemoveSrc(ip->AsAddr()));
 	%}
 
 ## Removes a source subnet filter.
@@ -5041,7 +5042,7 @@ function uninstall_src_addr_filter%(ip: addr%) : bool
 ##              Pcap::error
 function uninstall_src_net_filter%(snet: subnet%) : bool
 	%{
-	return zeek::val_mgr->Bool(session_mgr->GetPacketFilter()->RemoveSrc(snet));
+	return zeek::val_mgr->Bool(packet_mgr->GetPacketFilter()->RemoveSrc(snet));
 	%}
 
 ## Installs a filter to drop packets destined to a given IP address with
@@ -5073,7 +5074,7 @@ function uninstall_src_net_filter%(snet: subnet%) : bool
 ## .. todo:: The return value should be changed to any.
 function install_dst_addr_filter%(ip: addr, tcp_flags: count, prob: double%) : bool
 	%{
-	session_mgr->GetPacketFilter()->AddDst(ip->AsAddr(), tcp_flags, prob);
+	packet_mgr->GetPacketFilter()->AddDst(ip->AsAddr(), tcp_flags, prob);
 	return zeek::val_mgr->True();
 	%}
 
@@ -5103,7 +5104,7 @@ function install_dst_addr_filter%(ip: addr, tcp_flags: count, prob: double%) : b
 ## .. todo:: The return value should be changed to any.
 function install_dst_net_filter%(snet: subnet, tcp_flags: count, prob: double%) : bool
 	%{
-	session_mgr->GetPacketFilter()->AddDst(snet, tcp_flags, prob);
+	packet_mgr->GetPacketFilter()->AddDst(snet, tcp_flags, prob);
 	return zeek::val_mgr->True();
 	%}
 
@@ -5125,7 +5126,7 @@ function install_dst_net_filter%(snet: subnet, tcp_flags: count, prob: double%) 
 ##              Pcap::error
 function uninstall_dst_addr_filter%(ip: addr%) : bool
 	%{
-	return zeek::val_mgr->Bool(session_mgr->GetPacketFilter()->RemoveDst(ip->AsAddr()));
+	return zeek::val_mgr->Bool(packet_mgr->GetPacketFilter()->RemoveDst(ip->AsAddr()));
 	%}
 
 ## Removes a destination subnet filter.
@@ -5146,7 +5147,7 @@ function uninstall_dst_addr_filter%(ip: addr%) : bool
 ##              Pcap::error
 function uninstall_dst_net_filter%(snet: subnet%) : bool
 	%{
-	return zeek::val_mgr->Bool(session_mgr->GetPacketFilter()->RemoveDst(snet));
+	return zeek::val_mgr->Bool(packet_mgr->GetPacketFilter()->RemoveDst(snet));
 	%}
 
 ## Checks whether the last raised event came from a remote peer.
